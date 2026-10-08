@@ -77,8 +77,8 @@ svg{display:block}
 .poster::after{content:"";position:absolute;inset:0;border-radius:inherit;box-shadow:inset 0 0 0 1px rgba(255,255,255,.08);pointer-events:none}
 .card-body{padding:14px 6px 4px}
 .card-body h3{font:700 18px/1.2 var(--font-h);letter-spacing:-.01em}
-.card-body p{margin-top:8px;display:flex;gap:6px;flex-wrap:nowrap;overflow:hidden}
-.chip{display:inline-block;white-space:nowrap;flex:none;padding:3px 9px;border-radius:999px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.1);font-size:12px;color:var(--text)}
+.card-body p{margin-top:8px;display:flex;gap:5px;flex-wrap:wrap}
+.chip{display:inline-block;white-space:nowrap;flex:none;max-width:100%;overflow:hidden;text-overflow:ellipsis;padding:3px 9px;border-radius:999px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.1);font-size:12px;color:var(--text)}
 
 /* poster scenes */
 .sc{position:absolute;inset:14px;display:flex;flex-direction:column;gap:8px}
@@ -555,13 +555,38 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     sheet.classList.remove('on'); scrim.classList.remove('on'); sheet.setAttribute('aria-hidden','true');
     document.body.style.overflow = ''; paused = false; restart(); lastFocus && lastFocus.focus();
   }
+  // swipe the sheet down to close it
+  let sy0 = null, sdy = 0, st0 = 0, dragOk = false;
+  sheet.addEventListener('touchstart', e => {
+    if (!sheet.classList.contains('on')) return;
+    dragOk = sheet.scrollTop <= 0 || !!e.target.closest('.grab');
+    sy0 = e.touches[0].clientY; sdy = 0; st0 = Date.now();
+  }, { passive: true });
+  sheet.addEventListener('touchmove', e => {
+    if (sy0 === null || !dragOk) return;
+    sdy = e.touches[0].clientY - sy0;
+    if (sdy <= 0) { sheet.style.transform = ''; return; }
+    if (e.cancelable) e.preventDefault();
+    sheet.style.transition = 'none';
+    sheet.style.transform = `translate(-50%, ${sdy}px)`;
+    scrim.style.opacity = String(Math.max(0, 1 - sdy / 400));
+  }, { passive: false });
+  const endSwipe = () => {
+    if (sy0 === null) return;
+    const fast = sdy > 40 && sdy / Math.max(1, Date.now() - st0) > 0.5;
+    sheet.style.transition = ''; sheet.style.transform = ''; scrim.style.opacity = '';
+    if (dragOk && (sdy > 110 || fast)) closeSheet();
+    sy0 = null; sdy = 0;
+  };
+  sheet.addEventListener('touchend', endSwipe);
+  sheet.addEventListener('touchcancel', endSwipe);
   function openService(i) {
     const s = services[i];
     openSheet(`<h2 id="sheetTitle">${s.title}</h2><p class="lead">${s.lead}</p>
       <ul>${s.list.map(l=>`<li>${l}</li>`).join('')}</ul>
       <div class="terms">${s.chips.map(c=>`<span class="chip">${c}</span>`).join('')}</div>
       ${s.link ? `<a class="try" href="${s.link}" target="_blank" rel="noopener"><i></i>Попробовать emyCRM бесплатно</a>` : ''}
-      <div class="cta"><a class="p" href="${TG}" target="_blank" rel="noopener"><svg><use href="#i-tg"/></svg>Написать в Telegram</a><a class="s" href="${TEL}"><svg><use href="#i-phone"/></svg>Позвонить</a></div>`);
+      <div class="cta"><a class="p" href="${TG}" target="_blank" rel="noopener"><svg><use href="#i-tg"/></svg>Telegram</a><a class="s" href="${TEL}"><svg><use href="#i-phone"/></svg>Позвонить</a></div>`);
   }
   $('#close').onclick = closeSheet; scrim.onclick = closeSheet;
   addEventListener('keydown', e => { if (e.key === 'Escape' && sheet.classList.contains('on')) closeSheet(); });
